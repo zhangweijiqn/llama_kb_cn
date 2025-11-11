@@ -1,0 +1,19 @@
+Python是一种高级编程语言，由Guido van Rossum在1991年首次发布。
+
+Python的特点：
+- 语法简洁清晰
+- 易于学习和使用
+- 跨平台支持
+- 丰富的标准库和第三方库
+
+主要应用领域：
+1. Web开发：使用Django、Flask等框架
+2. 数据科学：NumPy、Pandas、Matplotlib
+3. 人工智能：TensorFlow、PyTorch
+4. 自动化脚本：系统管理、任务自动化
+
+Python的版本：
+- Python 2.x（已停止维护）
+- Python 3.x（当前主流版本）
+
+安装Python可以通过官方网站下载，或使用包管理器如apt、brew等。
