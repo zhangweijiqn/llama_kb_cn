@@ -65,11 +65,11 @@ class LLaMAModel:
             # 设置较低的内存使用
             if self.device == 'cpu':
                 # CPU 模式使用 float32，避免内存问题
-                model_kwargs.setdefault('torch_dtype', torch.float32)
+                model_kwargs.setdefault('dtype', torch.float32)
                 # 限制线程数
                 torch.set_num_threads(2)
             else:
-                model_kwargs.setdefault('torch_dtype', torch.float16)
+                model_kwargs.setdefault('dtype', torch.float16)
             
             # 使用低 CPU 内存模式
             if self.device == 'cpu' and not use_quantization:
@@ -86,7 +86,7 @@ class LLaMAModel:
             safe_kwargs = {
                 'trust_remote_code': True,
                 'low_cpu_mem_usage': True,  # 降低 CPU 内存使用
-                'torch_dtype': model_kwargs.get('torch_dtype', torch.float32),
+                'dtype': model_kwargs.get('dtype', torch.float32),
             }
             
             # 合并用户指定的参数
@@ -275,6 +275,15 @@ class LLaMAModel:
                 generated_text = full_generated_text.strip()
                 if generated_text == prompt:
                     generated_text = "抱歉，模型未能生成有效答案。请查看参考来源获取相关信息。"
+        
+        # 清理文本：移除可能的截断标记和不自然的结尾
+        # 检查是否在句子中间被截断（以常见的中文标点结尾）
+        if generated_text:
+            # 移除末尾的截断标记（如 "..." 或 "…"）
+            generated_text = generated_text.rstrip('...…')
+            
+            # 如果文本不以句号、问号、感叹号结尾，且长度较长，可能是被截断了
+            # 但不要强制添加，让用户看到完整的生成内容
         
         return generated_text
     

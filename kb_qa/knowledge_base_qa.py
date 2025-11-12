@@ -202,16 +202,18 @@ class KnowledgeBaseQA:
             
             context = '\n'.join(context_parts)
             
+            print(f"context: {context}")
+            print(f"self.llm: {self.llm}")
             # 构建提示（严格限制在知识库内）
             if self.llm:
-                prompt = f"""基于以下文档内容回答问题。如果文档中没有相关信息，请明确说明"根据提供的文档，无法回答此问题"。
+                prompt = f"""你是一个基于知识库的智能助手。请仔细阅读以下文档内容，并基于这些内容回答问题。
 
 文档内容：
 {context}
 
 问题：{question}
 
-请基于上述文档内容，用中文回答问题。如果文档中没有相关信息，请明确说明："""
+请基于上述文档内容，用中文详细回答问题。尽量从文档中提取相关信息并组织成完整的答案。只有在文档内容确实与问题完全无关时，才说明"根据提供的文档，无法回答此问题"。"""
         else:
             # 允许回答知识库外的问题
             context_parts = []
@@ -242,12 +244,15 @@ class KnowledgeBaseQA:
 
 请用中文回答问题："""
         
+
+        print(f"prompt: {prompt}")
+        
         # 4. 生成答案
         if self.llm:
             try:
-                # 如果没有指定 max_new_tokens，使用默认值 256
+                # 如果没有指定 max_new_tokens，使用默认值 512（增加长度，避免截断）
                 if max_new_tokens is None:
-                    max_new_tokens = 256
+                    max_new_tokens = 512
                 
                 answer = self.llm.generate(
                     prompt,
@@ -285,8 +290,17 @@ class KnowledgeBaseQA:
                         else:
                             answer = f"根据知识库检索，相关信息如下：\n\n{search_results[0][0][:500]}"
                 else:
+                    # 后处理：如果模型说"无法回答"但找到了文档，使用文档内容
+                    cannot_answer_keywords = ["无法回答", "无法回答此问题", "没有相关信息", "文档中没有", "无法从文档"]
+                    answer_lower = answer.lower()
+                    if any(keyword in answer_lower for keyword in cannot_answer_keywords) and search_results:
+                        # 模型说无法回答，但找到了文档，使用文档内容作为答案
+                        print("⚠ 模型说无法回答，但找到了文档，使用文档内容作为答案")
+                        answer = f"根据知识库检索，相关信息如下：\n\n{search_results[0][0][:800]}"
+                        if len(search_results) > 1:
+                            answer += f"\n\n其他相关信息：\n{search_results[1][0][:400]}"
                     # 确保答案不为空，如果太短且有检索结果，补充检索结果
-                    if len(answer.strip()) < 20 and search_results:
+                    elif len(answer.strip()) < 20 and search_results:
                         answer += f"\n\n参考信息：\n{search_results[0][0][:300]}"
                     
             except Exception as e:
@@ -384,14 +398,17 @@ class KnowledgeBaseQA:
                     'sources': [],
                     'retrieved_docs': []
                 }
-            system_content = f"你是一个基于知识库的智能助手。请严格基于以下文档内容回答问题。如果文档中没有相关信息，请明确说明\"根据提供的文档，无法回答此问题\"。\n\n文档内容：\n{context}"
+            system_content = f"你是一个基于知识库的智能助手。请仔细阅读以下文档内容，并基于这些内容回答问题。尽量从文档中提取相关信息并组织成完整的答案。只有在文档内容确实与问题完全无关时，才说明\"根据提供的文档，无法回答此问题\"。\n\n文档内容：\n{context}"
         else:
             # 允许回答知识库外的问题
             if search_results:
-                system_content = f"你是一个智能助手。请优先基于以下文档内容回答问题。如果文档中没有相关信息，可以基于你的知识回答。\n\n参考文档内容：\n{context}"
+                system_content = f"你是一个智能助手。请优先基于以下文档内容回答问题，并对回答进行润色，使其更加流畅、自然。如果文档中没有相关信息，可以基于你的知识回答。\n\n参考文档内容：\n{context}"
             else:
                 system_content = "你是一个智能助手。知识库中没有找到相关信息，请基于你的知识回答这个问题。"
         
+
+        print(f"system_content: {system_content}")
+
         messages.append({
             "role": "system",
             "content": system_content
@@ -410,9 +427,9 @@ class KnowledgeBaseQA:
         # 生成答案
         if self.llm:
             try:
-                # 如果没有指定 max_new_tokens，使用默认值 256
+                # 如果没有指定 max_new_tokens，使用默认值 512（增加长度，避免截断）
                 if max_new_tokens is None:
-                    max_new_tokens = 256
+                    max_new_tokens = 512
                 
                 answer = self.llm.chat(messages, max_length=max_length, max_new_tokens=max_new_tokens, temperature=temperature)
                 
@@ -448,8 +465,17 @@ class KnowledgeBaseQA:
                         else:
                             answer = f"根据知识库检索，相关信息如下：\n\n{search_results[0][0][:500]}"
                 else:
+                    # 后处理：如果模型说"无法回答"但找到了文档，使用文档内容
+                    cannot_answer_keywords = ["无法回答", "无法回答此问题", "没有相关信息", "文档中没有", "无法从文档"]
+                    answer_lower = answer.lower()
+                    if any(keyword in answer_lower for keyword in cannot_answer_keywords) and search_results:
+                        # 模型说无法回答，但找到了文档，使用文档内容作为答案
+                        print("⚠ 模型说无法回答，但找到了文档，使用文档内容作为答案")
+                        answer = f"根据知识库检索，相关信息如下：\n\n{search_results[0][0][:800]}"
+                        if len(search_results) > 1:
+                            answer += f"\n\n其他相关信息：\n{search_results[1][0][:400]}"
                     # 确保答案不为空，如果太短且有检索结果，补充检索结果
-                    if len(answer.strip()) < 20 and search_results:
+                    elif len(answer.strip()) < 20 and search_results:
                         answer += f"\n\n参考信息：\n{search_results[0][0][:300]}"
                         
             except Exception as e:
